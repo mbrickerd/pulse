@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.DltHandler
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.annotation.RetryableTopic
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy
 import org.springframework.kafka.support.KafkaHeaders
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.retry.annotation.Backoff
@@ -21,7 +22,8 @@ class TransactionAssessedListener(
 
     @RetryableTopic(
         attempts = "4",
-        backoff = Backoff(delay = 1000, multiplier = 2.0, maxDelay = 10000)
+        backoff = Backoff(delay = 1000, multiplier = 2.0, maxDelay = 10000),
+        topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_DELAY_VALUE
     )
     @KafkaListener(topics = [Topics.TRANSACTIONS_ASSESSED])
     fun onTransactionAssessed(event: TransactionAssessedEvent) {
