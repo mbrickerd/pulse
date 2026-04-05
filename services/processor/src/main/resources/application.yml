@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: pulse-processor
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${PULSE_KAFKA_CONSUMER_GROUP:pulse-processor}
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+logging:
+  level:
+    root: INFO
+
+pulse:
+  risk:
+    high-amount-threshold: 2500.00
+    low-risk-countries:
+      - NL
+      - BE
+      - DE
+      - FR
+      - LU
+      - DK
+      - SE
+      - NO
+      - FI
+      - IE
+    high-risk-merchant-categories:
+      - gift_cards
+      - crypto
+      - gambling
+      - electronics_resale
+    suspicious-email-domains:
+      - mailinator.com
+      - tempmail.com
+      - 10minutemail.com
+    score-impacts:
+      high-amount: 60
+      foreign-billing-country: 20
+      high-risk-merchant-category: 20
+      missing-device-id: 10
+      suspicious-email-domain: 15
+    risk-level-thresholds:
+      medium: 40
+      high: 80
