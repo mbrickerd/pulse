@@ -4,6 +4,7 @@ import com.mbeland.pulse.model.Topics
 import com.mbeland.pulse.model.transaction.TransactionSubmittedEvent
 import com.mbeland.pulse.processor.service.TransactionAssessmentService
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.DltHandler
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.annotation.RetryableTopic
@@ -27,14 +28,19 @@ class TransactionSubmittedListener(
     )
     @KafkaListener(topics = [Topics.TRANSACTIONS_SUBMITTED])
     fun onTransactionSubmitted(event: TransactionSubmittedEvent) {
-        log.info(
-            "Received transaction submitted event: transactionId={}, customerId={}, amount={}, currency={}",
-            event.transactionId,
-            event.customer.customerId,
-            event.payment.amount,
-            event.payment.currency
-        )
-        transactionAssessmentService.assess(event)
+        MDC.put("transactionId", event.transactionId)
+        try {
+            log.info(
+                "Received transaction submitted event: transactionId={}, customerId={}, amount={}, currency={}",
+                event.transactionId,
+                event.customer.customerId,
+                event.payment.amount,
+                event.payment.currency
+            )
+            transactionAssessmentService.assess(event)
+        } finally {
+            MDC.remove("transactionId")
+        }
     }
 
     @DltHandler

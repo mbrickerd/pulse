@@ -44,6 +44,6 @@ class TransactionAssessedPublisher(
             Topics.TRANSACTIONS_ASSESSED,
             event.transactionId,
             event
-        )
+        ).get()
     }
 }
