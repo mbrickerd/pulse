@@ -40,6 +40,45 @@ services:
       retries: 5
       start_period: 10s
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: pulse-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    container_name: pulse-jaeger
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
+  redis:
+    image: redis:7-alpine
+    container_name: pulse-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: pulse-kafka-ui
@@ -51,20 +90,35 @@ services:
       - KAFKA_CLUSTERS_0_NAME=pulse
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
 
-  api:
+  submitter:
     build:
       context: ../..
-      dockerfile: services/api/Dockerfile
-    container_name: pulse-api
+      dockerfile: services/submitter/Dockerfile
+    container_name: pulse-submitter
     depends_on:
       kafka:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8080:8080"
-      - "8082:8081"
+      - "8086:8081"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SERVER_PORT=8080
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8180/realms/pulse
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/pulse/protocol/openid-connect/certs
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   processor:
     build:
@@ -74,9 +128,18 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    ports:
+      - "8082:8082"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - PULSE_KAFKA_CONSUMER_GROUP=processor
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   projector:
     build:
@@ -88,6 +151,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     ports:
       - "8083:8083"
       - "8084:8084"
@@ -96,3 +161,12 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/pulse
       - SPRING_DATASOURCE_USERNAME=pulse
       - SPRING_DATASOURCE_PASSWORD=pulse
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8180/realms/pulse
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/pulse/protocol/openid-connect/certs
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
