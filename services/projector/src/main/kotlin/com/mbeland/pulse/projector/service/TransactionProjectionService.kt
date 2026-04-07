@@ -1,6 +1,7 @@
 package com.mbeland.pulse.projector.service
 
 import com.mbeland.pulse.model.transaction.TransactionAssessedEvent
+import com.mbeland.pulse.projector.domain.TransactionReason
 import com.mbeland.pulse.projector.domain.TransactionRiskProjection
 import com.mbeland.pulse.projector.port.SaveTransactionProjectionPort
 import org.slf4j.LoggerFactory
@@ -25,7 +26,7 @@ class TransactionProjectionService(
             riskLevel = event.riskLevel,
             riskScore = event.riskScore,
             reviewRequired = event.reviewRequired,
-            reasons = event.reasons.joinToString("|"),
+            reasons = event.reasons.map { TransactionReason(it) },
             assessedAt = event.occurredAt
         )
 

@@ -7,6 +7,7 @@ import io.mockk.every
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import java.math.BigDecimal
@@ -37,7 +38,9 @@ class TestTransactionController {
         )
         every { findTransactionProjectionPort.findByTransactionId("tx-123") } returns projection
 
-        mockMvc.get("/transactions/tx-123").andExpect {
+        mockMvc.get("/transactions/tx-123") {
+            with(jwt())
+        }.andExpect {
             status { isOk() }
             jsonPath("$.transactionId") { value("tx-123") }
             jsonPath("$.customerId") { value("cust-456") }
@@ -46,10 +49,19 @@ class TestTransactionController {
     }
 
     @Test
+    fun `should return 401 when no token is provided`() {
+        mockMvc.get("/transactions/tx-123").andExpect {
+            status { isUnauthorized() }
+        }
+    }
+
+    @Test
     fun `should return 404 when transactionId not found`() {
         every { findTransactionProjectionPort.findByTransactionId("unknown") } returns null
 
-        mockMvc.get("/transactions/unknown").andExpect {
+        mockMvc.get("/transactions/unknown") {
+            with(jwt())
+        }.andExpect {
             status { isNotFound() }
         }
     }

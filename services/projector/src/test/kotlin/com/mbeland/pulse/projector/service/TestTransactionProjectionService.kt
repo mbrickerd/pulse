@@ -1,5 +1,6 @@
 package com.mbeland.pulse.projector.service
 
+import com.mbeland.pulse.projector.domain.TransactionReason
 import com.mbeland.pulse.projector.port.SaveTransactionProjectionPort
 import com.mbeland.pulse.projector.TransactionAssessedEventFactory
 import io.mockk.every
@@ -38,7 +39,7 @@ class TestTransactionProjectionService {
                     projection.riskLevel == "HIGH" &&
                     projection.riskScore == 70 &&
                     projection.reviewRequired &&
-                    projection.reasons == "HIGH_AMOUNT|FOREIGN_BILLING_COUNTRY"
+                    projection.reasons == listOf(TransactionReason("HIGH_AMOUNT"), TransactionReason("FOREIGN_BILLING_COUNTRY"))
             })
         }
     }

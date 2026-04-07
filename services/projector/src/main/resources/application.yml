@@ -1,6 +1,12 @@
 spring:
   application:
     name: pulse-projector
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:http://localhost:8180/realms/pulse}
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI:http://localhost:8180/realms/pulse/protocol/openid-connect/certs}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/pulse}
     username: ${SPRING_DATASOURCE_USERNAME:pulse}
@@ -29,7 +35,19 @@ management:
   endpoint:
     health:
       show-details: never
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%X{transactionId}] [%X{traceId}] %logger{36} - %msg%n"
   level:
     root: INFO
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -4,6 +4,7 @@ import com.mbeland.pulse.model.Topics
 import com.mbeland.pulse.model.transaction.TransactionAssessedEvent
 import com.mbeland.pulse.projector.service.TransactionProjectionService
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.DltHandler
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.annotation.RetryableTopic
@@ -27,13 +28,18 @@ class TransactionAssessedListener(
     )
     @KafkaListener(topics = [Topics.TRANSACTIONS_ASSESSED])
     fun onTransactionAssessed(event: TransactionAssessedEvent) {
-        log.info(
-            "Received transaction assessed event: transactionId={}, riskLevel={}, riskScore={}",
-            event.transactionId,
-            event.riskLevel,
-            event.riskScore
-        )
-        transactionProjectionService.project(event)
+        MDC.put("transactionId", event.transactionId)
+        try {
+            log.info(
+                "Received transaction assessed event: transactionId={}, riskLevel={}, riskScore={}",
+                event.transactionId,
+                event.riskLevel,
+                event.riskScore
+            )
+            transactionProjectionService.project(event)
+        } finally {
+            MDC.remove("transactionId")
+        }
     }
 
     @DltHandler

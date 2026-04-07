@@ -12,4 +12,8 @@ class TopicConfig {
     @Bean
     fun transactionsAssessedTopic(): NewTopic =
         TopicBuilder.name(Topics.TRANSACTIONS_ASSESSED).build()
+
+    @Bean
+    fun transactionsAssessedDltTopic(): NewTopic =
+        TopicBuilder.name("${Topics.TRANSACTIONS_ASSESSED}.DLT").build()
 }
