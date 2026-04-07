@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-xml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: ktlint-format
+        name: ktlint format
+        language: system
+        entry: bash -c 'mvn ktlint:format -q --batch-mode'
+        pass_filenames: false
+        files: \.kt$
