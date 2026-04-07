@@ -11,7 +11,7 @@
 
     <modules>
         <module>common/model</module>
-        <module>services/api</module>
+        <module>services/submitter</module>
         <module>services/processor</module>
         <module>services/projector</module>
 
@@ -24,6 +24,9 @@
         <springdoc-openapi.version>2.8.16</springdoc-openapi.version>
         <mockk.version>1.13.13</mockk.version>
         <springmockk.version>4.0.2</springmockk.version>
+        <bucket4j.version>8.7.0</bucket4j.version>
+        <ktlint-maven-plugin.version>3.2.0</ktlint-maven-plugin.version>
+        <detekt-maven-plugin.version>1.23.7</detekt-maven-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>${java.version}</maven.compiler.release>
     </properties>
@@ -48,6 +51,11 @@
                 <artifactId>springmockk</artifactId>
                 <version>${springmockk.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j-core</artifactId>
+                <version>${bucket4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -116,5 +124,40 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>com.github.gantsign.maven</groupId>
+                <artifactId>ktlint-maven-plugin</artifactId>
+                <version>${ktlint-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>ktlint-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.github.ozsie</groupId>
+                <artifactId>detekt-maven-plugin</artifactId>
+                <version>${detekt-maven-plugin.version}</version>
+                <configuration>
+                    <config>${maven.multiModuleProjectDirectory}/detekt.yml</config>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>detekt-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>
