@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": ["maven", "dockerfile", "github-actions"],
+  "packageRules": [
+    {
+      "description": "Group Spring Boot dependencies",
+      "matchManagers": ["maven"],
+      "matchPackagePatterns": ["^org\\.springframework\\.boot"],
+      "groupName": "Spring Boot"
+    },
+    {
+      "description": "Group Kotlin dependencies",
+      "matchManagers": ["maven"],
+      "matchPackagePatterns": ["^org\\.jetbrains\\.kotlin"],
+      "groupName": "Kotlin"
+    }
+  ],
+  "automerge": false
+}
