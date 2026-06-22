@@ -1,0 +1,24 @@
+# Minimal BackendConfig CRD stub.
+# Allows the BackendConfig resources from the base to be applied in a local cluster
+# without a GKE controller. The resources are stored but have no effect locally.
+# Safe to apply: no controller is registered, so nothing acts on these objects.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: backendconfigs.cloud.google.com
+spec:
+  group: cloud.google.com
+  names:
+    kind: BackendConfig
+    listKind: BackendConfigList
+    plural: backendconfigs
+    singular: backendconfig
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true

@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processor
+  namespace: pulse
+  labels:
+    app: processor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: processor
+  template:
+    metadata:
+      labels:
+        app: processor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: processor
+      containers:
+        - name: processor
+          image: processor:latest
+          ports:
+            - name: management
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: pulse-config
+          env:
+            # Pub/Sub subscription — service-specific, mapped from the shared ConfigMap
+            - name: PULSE_PUBSUB_SUBSCRIPTION
+              valueFrom:
+                configMapKeyRef:
+                  name: pulse-config
+                  key: PULSE_PUBSUB_PROCESSOR_SUBSCRIPTION
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            periodSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: processor

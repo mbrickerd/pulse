@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-emulator
+  namespace: pulse
+  labels:
+    app: pubsub-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-emulator
+  template:
+    metadata:
+      labels:
+        app: pubsub-emulator
+    spec:
+      containers:
+        - name: pubsub-emulator
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+          command:
+            - gcloud
+            - beta
+            - emulators
+            - pubsub
+            - start
+            - --host-port=0.0.0.0:8085
+            - --project=local-dev
+          ports:
+            - containerPort: 8085
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pubsub-emulator
+  namespace: pulse
+spec:
+  selector:
+    app: pubsub-emulator
+  ports:
+    - port: 8085
+      targetPort: 8085
+---
+# Creates the topics and subscriptions the services expect.
+# Runs once on first deploy; re-run with: kubectl delete job pubsub-setup -n pulse
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pubsub-setup
+  namespace: pulse
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: wait-for-emulator
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              until curl -sf "http://pubsub-emulator:8085/v1/projects/local-dev/topics"; do
+                echo "waiting for pubsub-emulator..."
+                sleep 2
+              done
+      containers:
+        - name: setup
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              curl -sX PUT http://pubsub-emulator:8085/v1/projects/local-dev/topics/events
+              curl -sX PUT http://pubsub-emulator:8085/v1/projects/local-dev/subscriptions/processor-sub \
+                -H "Content-Type: application/json" \
+                -d '{"topic":"projects/local-dev/topics/events"}'
+              curl -sX PUT http://pubsub-emulator:8085/v1/projects/local-dev/subscriptions/projector-sub \
+                -H "Content-Type: application/json" \
+                -d '{"topic":"projects/local-dev/topics/events"}'
+              echo "Pub/Sub topics and subscriptions created."
+      restartPolicy: OnFailure

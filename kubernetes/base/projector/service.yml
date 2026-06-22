@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: projector
+  namespace: pulse
+  annotations:
+    cloud.google.com/backend-config: '{"default": "projector"}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: projector
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP

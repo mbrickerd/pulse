@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pulse
+  namespace: pulse
+  annotations:
+    # Static IP resource name — set in terraform ingress module as "${var.name}-ingress"
+    # Verify: gcloud compute addresses list --global
+    kubernetes.io/ingress.global-static-ip-name: pulse-ingress
+
+    # Uncomment to enable Google-managed TLS once a domain points to the static IP:
+    # networking.gke.io/managed-certificates: pulse-cert
+    #
+    # Then add a ManagedCertificate resource:
+    #   apiVersion: networking.gke.io/v1
+    #   kind: ManagedCertificate
+    #   metadata:
+    #     name: pulse-cert
+    #     namespace: pulse
+    #   spec:
+    #     domains:
+    #       - api.your-domain.com
+spec:
+  rules:
+    - http:
+        paths:
+          # POST /transactions → submitter
+          - path: /transactions
+            pathType: Exact
+            backend:
+              service:
+                name: submitter
+                port:
+                  name: http
+          # GET /transactions/{transactionId} → projector
+          # Trailing slash ensures this only matches paths with an ID segment
+          - path: /transactions/
+            pathType: Prefix
+            backend:
+              service:
+                name: projector
+                port:
+                  name: http

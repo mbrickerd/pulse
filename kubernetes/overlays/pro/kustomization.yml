@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pulse
+
+resources:
+  - ../../base
+  - ingress.yml
+  - external-secrets/cluster-secret-store.yml
+
+# Generates the pulse-config ConfigMap from config.env.
+# Fill in all FILL_IN values in config.env before deploying.
+configMapGenerator:
+  - name: pulse-config
+    namespace: pulse
+    envs:
+      - config.env
+# Image tags — update newTag before each deploy.
+# In CI: kustomize edit set image submitter=REGISTRY/submitter:GIT_SHA
+#
+# Fill in PROJECT_ID and REGION (e.g., us-central1).
+# terraform output: artifact_registry_url gives you the registry prefix.
+images:
+  - name: submitter
+    newName: REGION-docker.pkg.dev/PROJECT_ID/pulse-pro/submitter
+    newTag: latest
+  - name: processor
+    newName: REGION-docker.pkg.dev/PROJECT_ID/pulse-pro/processor
+    newTag: latest
+  - name: projector
+    newName: REGION-docker.pkg.dev/PROJECT_ID/pulse-pro/projector
+    newTag: latest
+  # OTel collector — mirror this image to Artifact Registry to avoid Docker Hub pull limits.
+  # docker pull otel/opentelemetry-collector-contrib:0.101.0
+  # docker tag ... REGION-docker.pkg.dev/PROJECT_ID/pulse-pro/otel-collector:0.101.0
+  # docker push ...
+  - name: otel/opentelemetry-collector-contrib
+    newName: REGION-docker.pkg.dev/PROJECT_ID/pulse-pro/otel-collector
+    newTag: "0.101.0"

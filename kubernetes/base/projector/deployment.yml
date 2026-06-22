@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projector
+  namespace: pulse
+  labels:
+    app: projector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: projector
+  template:
+    metadata:
+      labels:
+        app: projector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: projector
+      containers:
+        - name: projector
+          image: projector:latest
+          ports:
+            - name: http
+              containerPort: 8083
+            - name: management
+              containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: pulse-config
+          env:
+            # Datasource URL is always localhost via the Cloud SQL proxy sidecar —
+            # not a terraform output, no reason to put it in the ConfigMap.
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://127.0.0.1:5432/pulse"
+            # IAM database authentication — username is the projector GSA email
+            # without the .gserviceaccount.com suffix (e.g. sa@project.iam).
+            # Populate from: terraform output projector_gsa_email, then strip .gserviceaccount.com
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: pulse-config
+                  key: SPRING_DATASOURCE_USERNAME
+            # No password — the Cloud SQL Auth Proxy exchanges the IAM token automatically.
+            # Pub/Sub subscription — mapped from the shared ConfigMap
+            - name: PULSE_PUBSUB_SUBSCRIPTION
+              valueFrom:
+                configMapKeyRef:
+                  name: pulse-config
+                  key: PULSE_PUBSUB_PROJECTOR_SUBSCRIPTION
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: "http://$(NODE_IP):4318/v1/traces"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            periodSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+        # Cloud SQL Auth Proxy sidecar — authenticates using projector Workload Identity.
+        # The projector GSA has roles/cloudsql.client (set in terraform workload_identity module).
+        # No explicit credentials needed.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            - "--private-ip"
+            - "--port=5432"
+            - "--auto-iam-authn"
+            # Kubernetes substitutes $(CLOUDSQL_CONNECTION_NAME) from the env var below.
+            # Format: PROJECT_ID:REGION:INSTANCE_NAME
+            - "$(CLOUDSQL_CONNECTION_NAME)"
+          env:
+            - name: CLOUDSQL_CONNECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: pulse-config
+                  key: CLOUDSQL_CONNECTION_NAME
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: projector

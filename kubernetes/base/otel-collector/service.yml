@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: pulse
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+  # App pods reach the collector via NODE_IP:hostPort, not through this Service.
+  # This Service exists for any tooling that needs a stable cluster-internal DNS name.
+  type: ClusterIP

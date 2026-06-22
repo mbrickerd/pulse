@@ -1,0 +1,24 @@
+# Patch the projector Deployment for local development:
+#   - SPRING_DATASOURCE_URL: points to in-cluster Postgres Service instead of 127.0.0.1:5432 (Cloud SQL proxy)
+#   - SPRING_DATASOURCE_PASSWORD: injected from ConfigMap (IAM auth not available locally)
+#   - cloud-sql-proxy sidecar removed (replaced by resources/postgres.yml)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projector
+  namespace: pulse
+spec:
+  template:
+    spec:
+      containers:
+        - name: projector
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres:5432/pulse"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: pulse-config
+                  key: SPRING_DATASOURCE_PASSWORD
+        - name: cloud-sql-proxy
+          $patch: delete

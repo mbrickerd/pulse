@@ -1,0 +1,67 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pulse
+
+resources:
+  - ../../base
+  # Stub CRD so BackendConfig resources from base can be applied without error.
+  # No GKE controller runs locally, so these resources are inert.
+  - resources/backendconfig-crd.yml
+  # In-cluster replacements for GCP managed services
+  - resources/redis.yml
+  - resources/postgres.yml
+  - resources/pubsub-emulator.yml
+
+# Images — base uses short names (submitter:latest, processor:latest, projector:latest).
+# For kind:           kind load docker-image <image>:<tag>
+# For minikube:       eval $(minikube docker-env) && docker build ...
+# For Docker Desktop: locally-built images are available automatically.
+
+configMapGenerator:
+  - name: pulse-config
+    namespace: pulse
+    envs:
+      - config.env
+
+patches:
+  # Scale all Deployments to one replica — local clusters rarely have multiple nodes
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  # PDBs with minAvailable:1 block eviction when only one replica is running
+  - target:
+      kind: PodDisruptionBudget
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0
+  # Use locally-built images; :latest tag defaults to imagePullPolicy: Always otherwise
+  - target:
+      kind: Deployment
+      name: processor
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: projector
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: submitter
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  # Remove Cloud SQL Auth Proxy sidecar; point projector at in-cluster Postgres
+  - path: patches/projector.yml
+  # Replace Google Cloud exporter with debug (stdout) logging
+  - path: patches/otel-configmap.yml
