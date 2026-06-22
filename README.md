@@ -54,7 +54,7 @@ pulse/
 |   `-- services/
 |       |-- submitter/               // REST API for transaction submission (port 8080)
 |       |-- processor/               // Fraud risk scoring engine (event-driven, no public API)
-|       |-- projector/               // Query API and PostgreSQL persistence (port 8083)
+|       `-- projector/               // Query API and PostgreSQL persistence (port 8083)
 |-- .pre-commit-config.yaml
 |-- docker-compose.yml               // Full local stack
 `-- README.md                        // This file
